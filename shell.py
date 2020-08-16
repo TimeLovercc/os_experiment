@@ -215,20 +215,23 @@ def show_resource():
 def time_out():
     global ready_queue
     global running
-    if ready_queue[1].priority < running.priority:
+    # 运行中的加入ready队列
+    for process in process_list:
+        if process.name == running.name:
+            ready_queue.append(process)
+            ready_name = process.name
+    # ready队列头进入running
+    if ready_queue[1].name == 'init':
+        running = ready_queue[2]
+    else:
+        running = ready_queue[1]
+    ready_queue.pop(0)
+    # 重新排序
+    sort_queue()
+    # 输出
+    if running.name == ready_name:
         print('process ' + running.name + ' is running.')
     else:
-        # 运行中的加入ready队列
-        for process in process_list:
-            if process.name == running.name:
-                ready_queue.append(process)
-                ready_name = process.name
-        # ready队列头进入running
-        running = ready_queue[1]
-        ready_queue.pop(0)
-        # 重新排序
-        sort_queue()
-        # 输出
         print('process ' + running.name + ' is running.', end = '')
         print('process ' + ready_name + ' is ready.')
 
