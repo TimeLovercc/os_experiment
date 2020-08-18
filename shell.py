@@ -5,7 +5,6 @@ process_list = []
 resource_list = []
 # 进程队列
 ready_queue = []
-block_queue = []
 # 正在运行的进程
 running = ''
 
@@ -71,7 +70,6 @@ def delete_process(name):
     global process_list
     global resource_list
     global ready_queue
-    global block_queue
     # 停止运行
     if running.name == name:
         running = ''
@@ -88,9 +86,6 @@ def delete_process(name):
     for pro in ready_queue:
         if pro.name == name:
             ready_queue.remove(pro)
-    for pro in block_queue:
-        if pro.name == name:
-            block_queue.remove(pro)
     # 从各资源队列中删除
     for pro in process_list:
         if pro.name == name:
@@ -125,9 +120,6 @@ def delete_process(name):
                         running.status = 'ready'
                         running = process
                         process.status = 'running'
-                # 将进程加入队列并妥善排列
-                process_list.append(process)
-                sort_queue()
     # 对队列进行排序
     sort_queue()
     # 输出
@@ -139,7 +131,6 @@ def delete_process(name):
 # 展示ready队列
 def show_process():
     global ready_queue
-    global block_queue
     # 优先级数量初始化
     prior_count = [0, 0, 0]
     # 统计各个优先级数量
@@ -181,7 +172,6 @@ def request_resouce(name, num):
     global running
     global resource_list
     global ready_queue
-    global block_queue
     # 报错
     if running == '':
         print("没有进程运行！")
@@ -192,7 +182,6 @@ def request_resouce(name, num):
             if resource.status < num:
                 running.status = 'blocked'
                 block_name = running.name
-                block_queue.append(running)
                 resource.list.append(running)
                 running = ready_queue[1]
                 ready_queue.pop(0)
@@ -205,11 +194,81 @@ def request_resouce(name, num):
                 print('process ' + running.name + ' requests ' + str(num) + ' ' + name)
     sort_queue()
 
+# 释放资源
+def release_resource(name):
+    global running
+    global ready_queue
+    global resource_list
+    # 返还资源
+    resource.status += running.resources[name]
+    running.resources[name] = 0
+    # 看看能不能唤醒某进程
+    process = ''
+    for resource in resource_list:
+        if resource.name == name:
+            if resource.list[0].resources[name] <= resource.status:
+                process = resource.list[0]
+                # 判断进程状态
+                if running.priority >= process.priority:
+                    ready_queue.append(process)
+                    process.status = 'ready'
+                else:
+                    ready_queue.append(process)
+                    running.status = 'ready'
+                    running = process
+                    process.status = 'running'
+    # 对队列进行排序
+    sort_queue()
+    # 输出
+    if process == '':
+        print('release ' + name)
+    else:
+        print('release ' + name + '. wake up process '+ process.name)
+
+
 # 展示资源
 def show_resource():
     global resource_list
     for resource in resource_list:
         print(resource.name + ' ' + str(resource.status))
+
+def print_pcb(name):
+    global process_list
+    global resource_list
+    # 输出PCB
+    for pro in process_list:
+        if pro.name == name:
+            # 输出PID
+            print('PID' + name)
+            # 输出进程占用资源
+            occu_resource = ''
+            for key, value in pro.resources:
+                if value != 0:
+                    occu_resource = key
+                    print(key)
+            # 输出运行状态
+            print('Status: ' + pro.status)
+            # 输出对应队列
+            if pro.status == 'ready':
+                print('Ready List:')
+                show_process()
+            elif pro.status == 'blocked':
+                print('Block List:')
+                for resource in resource_list:
+                    if resource.name == occu_resource:
+                        flag = 0
+                        print(resource.name + ' ', end = '')
+                        for pro in resource.list:
+                            if flag == 0:
+                                print(pro.name, end='')
+                            else:
+                                print('-' + pro.name, end = '')
+                            flag += 1
+                        print()
+            # 输出树形结构
+            
+            # 输出优先级
+            print('Priority: ' + str(pro.priority))
 
 # 模拟时钟中断
 def time_out():
@@ -261,16 +320,13 @@ def compile(command):
     elif command[0] == 'req':
         request_resouce(command[1], int(command[2]))
     elif command[0] == 'rel':
-        release_process_all(command[1])
-    elif command[0] == 'ps':
-        print_status()
+        release_resource(command[1])
     elif command[0] == 'pr':
-        print_resources()
+        print_pcb(command[1])
 
 # 排列队列
 def sort_queue():
     global ready_queue
-    global block_queue
     # 排列ready队列
     tmp_1 = []
     for pro in ready_queue:
@@ -283,18 +339,6 @@ def sort_queue():
         if pro.priority == 0:
             tmp_1.append(pro)
     ready_queue = tmp_1
-    # 排列block队列
-    tmp_2 = []
-    for pro in block_queue:
-        if pro.priority == 3:
-            tmp_2.append(pro)
-    for pro in block_queue:
-        if pro.priority == 2:
-            tmp_2.append(pro)
-    for pro in block_queue:
-        if pro.priority == 1:
-            tmp_2.append(pro)
-    block_queue = tmp_2
     
 
 
@@ -302,7 +346,6 @@ def main():
     global process_list
     global resource_list
     global ready_queue
-    global block_queue
     global running
     # 初始化资源和PCB
     pcb = create_process('init', 0)
