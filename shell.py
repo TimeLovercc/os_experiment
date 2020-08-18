@@ -18,7 +18,8 @@ class Pcb:
         self.resources = {'R1':0, 'R2':0, 'R3':0, 'R4':0}
         self.status = ''
         self.list = []
-        self.tree = ''
+        self.parent = ''
+        self.children = []
         self.priority = priority
 
 # 资源控制块
@@ -42,6 +43,7 @@ def create_process(name, priority):
     process = Pcb(name, priority)
     # 判断进程状态
     if running == '':
+        process.parent = 'null'
         if ready_queue == []:
             running = process
             process.status = 'running'
@@ -50,6 +52,8 @@ def create_process(name, priority):
             ready_queue.append(process)
             process.status = 'ready'
     else:
+        process.parent = running.name
+        running.children.append(name)
         if running.priority >= process.priority:
             ready_queue.append(process)
             process.status = 'ready'
@@ -232,17 +236,27 @@ def show_resource():
     for resource in resource_list:
         print(resource.name + ' ' + str(resource.status))
 
+# 打印PCB
 def print_pcb(name):
     global process_list
     global resource_list
+    # 判断是否存在
+    exist = 0
+    for pro in process_list:
+        if pro.name == name:
+            exist = 1
+    if exist == 0:
+        print("没有该进程！")
+        return
     # 输出PCB
     for pro in process_list:
         if pro.name == name:
             # 输出PID
-            print('PID' + name)
+            print('PID: ' + name)
             # 输出进程占用资源
+            print('Resources: ', end = '')
             occu_resource = ''
-            for key, value in pro.resources:
+            for key, value in pro.resources.items():
                 if value != 0:
                     occu_resource = key
                     print(key)
@@ -266,7 +280,11 @@ def print_pcb(name):
                             flag += 1
                         print()
             # 输出树形结构
-            
+            print('Parent: ' + pro.parent)
+            print('Children: ', end='')
+            for child in pro.children:
+                print(child + ' ', end = '')
+            print()
             # 输出优先级
             print('Priority: ' + str(pro.priority))
 
